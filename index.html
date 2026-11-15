@@ -86,11 +86,16 @@ const RADIOS=[
   {name:"WDR 3",url:"https://wdr-wdr3-live.icecastssl.wdr.de/wdr/wdr3/live/mp3/256/stream.mp3"},
   {name:"Klara",url:"https://icecast.vrtcdn.be/klara-high.mp3"}
 ];
+// Lieblingsstücke mit fest hinterlegten Aufnahmen (von der KI ausgewählt), damit sie sofort starten
 const FAVS=[
-  ["Mondscheinsonate","Beethoven"],["Für Elise","Beethoven"],
-  ["Eine kleine Nachtmusik","Mozart"],["Die vier Jahreszeiten","Vivaldi"],
-  ["Air","Bach"],["Nocturnes","Chopin"],
-  ["An der schönen blauen Donau","Strauss"],["Die Moldau","Smetana"]
+  {name:"Mondscheinsonate",by:"Beethoven",picks:[["MoonlightSonata_755","Mondscheinsonate – Beethoven"],["SonataNo.14MoonlightOp.27No.2","Klaviersonate Nr. 14 op. 27/2"],["BeethovenPianoSonataNo.14moonlightrubinstein","Mondscheinsonate – Rubinstein"]]},
+  {name:"Für Elise",by:"Beethoven",picks:[["FurElise_656","Für Elise – Beethoven"],["BeethovenBagatelleInAMinorFuerEliseschnabel","Für Elise – Schnabel"],["dx-974-beethoven-bagatelle-op-33-2","Für Elise – Eileen Joyce (1940)"]]},
+  {name:"Eine kleine Nachtmusik",by:"Mozart",picks:[["MOZARTSerenadeEineKleineNachtmusikK.525-NEWTRANSFER01.I.Allegro","Eine kleine Nachtmusik – Bruno Walter"],["MozartEineKleineNachtmusik_102","Eine kleine Nachtmusik – Mozart"],["EineKleineNachtmusik_201608","Eine kleine Nachtmusik – Mozart"]]},
+  {name:"Die vier Jahreszeiten",by:"Vivaldi",picks:[["lp_the-four-seasons_antonio-vivaldi_0","Die vier Jahreszeiten – Vivaldi"],["lp_the-four-seasons_antonio-vivaldi_2","Die vier Jahreszeiten – Vivaldi"],["Vivaldi_Quattro_Stagioni","Quattro Stagioni – Vivaldi"]]},
+  {name:"Air",by:"Bach",picks:[["J.S.BachAir","Air – Bach, Koussevitzky"],["78_air-on-the-g-string_bach_gbia0012890a","Air on the G String – Bach"],["JohannSebastianBachOrchestralSuiteNo.3BWV1068II.AirFromSeven","Air aus Orchestersuite Nr. 3"]]},
+  {name:"Nocturnes",by:"Chopin",picks:[["FredericChopinNocturneOp.9No.1InBFlatMinor","Nocturne op. 9 Nr. 1 – Chopin"],["CaelaHarrisonNocturneinGminor_Op.15No.3_Chopin_","Nocturne op. 15 Nr. 3 – Chopin"]]},
+  {name:"An der schönen blauen Donau",by:"Strauss",picks:[["JOHANNSTRAUSSTheBlueDanube-Waltz-NEWTRANSFERJOHANNSTRAUSSTheBlueDanubeWaltz","Blaue Donau – Szell"],["AnDerSchnemBlauenDonau","Blaue Donau – Strauss"],["TheBlueDanube","The Blue Danube – Strauss"]]},
+  {name:"Die Moldau",by:"Smetana",picks:[["Friedrich_Smetana_-_Die_Moldau","Die Moldau – Smetana"],["SMETANATheMoldau-NEWTRANSFER","Die Moldau – Kindler"],["78_from-bohemias-meadows-and-forests-z-eskyh-luhv-a-hjv_czech-philharmonic-orc_gbia7013465","Die Moldau – Kubelik"]]}
 ];
 // Notlösung ohne KI: deutsche Begriffe, die im Archiv meist englisch heißen
 const DICT={"mondscheinsonate":"moonlight sonata","für elise":"fur elise","vier jahreszeiten":"four seasons",
@@ -109,8 +114,22 @@ const say=t=>$("heard").textContent=t;
 
 $("radios").innerHTML=RADIOS.map(r=>btn(r.name,"","radio")).join("");
 [...$("radios").children].forEach((b,i)=>b.onclick=()=>playRadio(RADIOS[i]));
-$("favs").innerHTML=FAVS.map(f=>btn(f[0],f[1])).join("");
-[...$("favs").children].forEach((b,i)=>b.onclick=()=>search(FAVS[i][0]+" von "+FAVS[i][1]));
+$("favs").innerHTML=FAVS.map(f=>btn(f.name,f.by)).join("");
+[...$("favs").children].forEach((b,i)=>b.onclick=()=>{
+  const p=FAVS[i].picks.map(x=>({identifier:x[0],titel:x[1]}));
+  say("");playItem(p[0].identifier,p[0].titel);showAlts(p.slice(1));
+});
+
+/* iPhone erlaubt Abspielen nur direkt nach einem Fingertipp. Deshalb beim ersten Tipp
+   kurz einen stummen Ton abspielen: danach darf die App auch später selbst starten. */
+const SILENT="data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+let unlocked=false;
+function unlock(){
+  if(unlocked) return;
+  try{audio.src=SILENT;const p=audio.play();if(p)p.then(()=>{audio.pause();unlocked=true}).catch(()=>{})}catch(e){}
+}
+document.addEventListener("touchend",unlock,{capture:true});
+document.addEventListener("click",unlock,{capture:true});
 
 /* ---------- Zuletzt gehört (bleibt auf diesem iPhone gespeichert) ---------- */
 function loadRecent(){try{return JSON.parse(localStorage.getItem("klassik_recent")||"[]")}catch(e){return []}}
@@ -150,7 +169,9 @@ async function search(text){
   if(!picks.length){say("Leider nichts gefunden. Bitte anders sagen.");return}
   say("");
   playItem(picks[0].identifier,picks[0].titel);
-  const rest=picks.slice(1,5);
+  showAlts(picks.slice(1,5));
+}
+function showAlts(rest){
   $("altBox").classList.toggle("hide",!rest.length);
   $("alts").innerHTML=rest.map(p=>btn(p.titel,"")).join("");
   [...$("alts").children].forEach((b,i)=>b.onclick=()=>playItem(rest[i].identifier,rest[i].titel));
@@ -211,19 +232,33 @@ function setBusy(on){$("mic").classList.toggle("busy",on);$("micText").textConte
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!SR){$("micText").textContent="Sprechen geht hier leider nicht";$("mic").disabled=true;$("mic").style.opacity=.5}
 else{
-  let rec=null;
+  // Auf dem iPhone kommt oft kein "fertig"-Signal. Deshalb: nach 1,5 Sekunden Stille selbst beenden
+  // und mit dem zuletzt erkannten Text suchen, egal wie die Erkennung endet.
+  let rec=null,heard="",silence=null,done=false;
+  function finish(){
+    if(done) return; done=true;
+    clearTimeout(silence);
+    try{rec&&rec.stop()}catch(e){}
+    rec=null;$("mic").classList.remove("on");
+    const t=heard.trim();
+    if(t.length>1) search(t); else {setBusy(false);say("Ich habe nichts verstanden. Bitte noch einmal drücken.")}
+  }
   $("mic").onclick=()=>{
     if($("mic").classList.contains("busy")) return;
-    if(rec){rec.stop();return}
-    rec=new SR();rec.lang="de-DE";rec.interimResults=true;rec.maxAlternatives=1;
-    let final="";
-    rec.onresult=e=>{const r=[...e.results].map(x=>x[0].transcript).join(" ");say("„"+r+"“");
-      if(e.results[e.results.length-1].isFinal) final=r};
-    rec.onend=()=>{$("mic").classList.remove("on");rec=null;
-      if(final) search(final); else setBusy(false)};
-    rec.onerror=()=>say("Das hat nicht geklappt. Bitte noch einmal drücken.");
-    $("mic").classList.add("on");$("micText").textContent="Ich höre zu … (zum Beenden drücken)";say("");
-    try{rec.start()}catch(e){rec=null;$("mic").classList.remove("on")}
+    if(rec){finish();return}
+    heard="";done=false;
+    rec=new SR();rec.lang="de-DE";rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;
+    rec.onresult=e=>{
+      heard=[...e.results].map(x=>x[0].transcript).join(" ");say("„"+heard+"“");
+      clearTimeout(silence);
+      if(e.results[e.results.length-1].isFinal) finish();
+      else silence=setTimeout(finish,1500);
+    };
+    rec.onend=finish;
+    rec.onerror=e=>{if(e.error==="not-allowed"){done=true;rec=null;$("mic").classList.remove("on");setBusy(false);say("Bitte Mikrofon in den Einstellungen erlauben.")}else finish()};
+    $("mic").classList.add("on");$("micText").textContent="Ich höre zu …";say("");
+    silence=setTimeout(finish,8000); // spätestens nach 8 Sekunden
+    try{rec.start()}catch(e){rec=null;$("mic").classList.remove("on");setBusy(false)}
   };
 }
 }

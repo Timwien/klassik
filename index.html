@@ -29,6 +29,11 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 @keyframes pulse{50%{opacity:.8}}
 @media(prefers-reduced-motion:reduce){.mic.on{animation:none}}
 .heard{min-height:24px;margin:6px 4px 0;color:var(--soft);font-size:17px}
+.type{display:flex;gap:8px;margin-top:8px}
+.type input{flex:1;height:52px;font:inherit;font-size:19px;padding:0 14px;border-radius:16px;border:2px solid #3d5247;background:var(--panel);color:var(--ink)}
+.type input::placeholder{color:var(--soft)}
+.type input:focus{outline:none;border-color:var(--brass)}
+.type button{height:52px;padding:0 16px;border-radius:16px;background:var(--panel);border:2px solid #3d5247;font-size:18px;font-weight:700}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .b{display:flex;flex-direction:column;justify-content:center;width:100%;text-align:left;padding:8px 12px;border-radius:16px;
@@ -62,6 +67,10 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V5a4 4 0 0 0-8 0v6a4 4 0 0 0 4 4Zm7-4a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-3.08A7 7 0 0 0 19 11Z"/></svg>
   <span id="micText">Drücken und Wunsch sagen</span>
 </button>
+<form class="type" id="form" autocomplete="off">
+  <input id="q" type="search" enterkeyhint="search" placeholder="Oder eintippen, z.B. Turandot" aria-label="Suchbegriff eintippen">
+  <button aria-label="Suchen">Suchen</button>
+</form>
 <div class="heard" id="heard"></div>
 
 <div id="altBox" class="hide"><h2>Andere Aufnahmen</h2><div class="grid" id="alts"></div></div>
@@ -185,6 +194,14 @@ function showPicks(picks,heardText){
   playItem(picks[0].identifier,picks[0].titel);
   showAlts(picks.slice(1,5));
 }
+
+$("form").onsubmit=e=>{
+  e.preventDefault();
+  const v=$("q").value.trim();
+  if(v.length<2||$("mic").classList.contains("busy")) return;
+  $("q").blur();$("q").value="";
+  search(v);
+};
 
 /* ---------- Aufnahme: Stimme aufnehmen, an Mistral schicken (über den Worker) ---------- */
 const CAN_RECORD=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);

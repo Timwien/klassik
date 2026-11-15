@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Klassik">
+<meta name="theme-color" content="#1d2a24">
+<title>Klassik</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: ruhig, warm, nichts Überflüssiges. Für einen älteren Herrn.
+   IDEA: ein altes Radio mit großen Tasten.
+   PICTURE: das große Mikrofon und die Wiedergabe-Leiste sind das Bild.
+   COLOUR and TYPE: dunkles Tannengrün, Elfenbein, Messing. Atkinson Hyperlegible (für gute Lesbarkeit gebaut).
+   LAYOUT: eine Spalte, riesige Tasten, alles mit dem Daumen erreichbar. */
+:root{--bg:#1d2a24;--panel:#26372f;--ink:#f6efe0;--soft:#c9c0ac;--brass:#d9a441;--red:#c8463a}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:22px/1.4 "Atkinson Hyperlegible",system-ui,sans-serif;
+  padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 190px);-webkit-tap-highlight-color:transparent}
+h1{font-size:34px;margin:18px 4px 8px}
+h2{font-size:26px;margin:30px 4px 12px;color:var(--brass)}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.mic{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;padding:26px 12px;border-radius:28px;
+  background:var(--brass);color:#1d2a24;font-weight:700;font-size:28px}
+.mic svg{width:110px;height:110px}
+.mic.on{background:var(--red);color:#fff;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{transform:scale(.97)}}
+@media(prefers-reduced-motion:reduce){.mic.on{animation:none}}
+.heard{min-height:32px;margin:12px 4px;color:var(--soft);font-size:22px}
+.type{display:flex;gap:10px;margin:0 0 6px}
+.type input{flex:1;font:inherit;font-size:22px;padding:14px;border-radius:16px;border:2px solid var(--soft);background:var(--panel);color:var(--ink)}
+.type button{background:var(--panel);border:2px solid var(--soft);border-radius:16px;padding:0 18px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:12px}
+.big{display:block;width:100%;text-align:left;padding:22px 20px;border-radius:20px;background:var(--panel);
+  font-size:24px;font-weight:700;min-height:84px;border:2px solid transparent}
+.big small{display:block;font-weight:400;font-size:19px;color:var(--soft)}
+.big:active,.big:focus-visible{border-color:var(--brass);outline:none}
+.radio{background:#33473d}
+.list .big{margin-bottom:10px}
+.msg{padding:18px;border-radius:16px;background:var(--panel);color:var(--soft)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#101a15;border-top:3px solid var(--brass);
+  padding:14px 16px calc(14px + env(safe-area-inset-bottom))}
+.now{font-size:20px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px}
+.now b{color:var(--ink)}
+.ctl{display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px}
+.ctl button{height:84px;border-radius:20px;background:var(--panel);font-size:24px;font-weight:700}
+.ctl .pp{background:var(--brass);color:#1d2a24;font-size:30px}
+.ctl button:disabled{opacity:.35}
+</style>
+</head>
+<body>
+<h1>Klassische Musik</h1>
+
+<button class="mic" id="mic" aria-label="Sprechen">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V5a4 4 0 0 0-8 0v6a4 4 0 0 0 4 4Zm7-4a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-3.08A7 7 0 0 0 19 11Z"/></svg>
+  <span id="micText">Drücken und sagen, was Sie hören möchten</span>
+</button>
+<div class="heard" id="heard"></div>
+<form class="type" id="form">
+  <input id="q" type="search" placeholder="Oder hier eintippen" autocomplete="off">
+  <button>Suchen</button>
+</form>
+
+<div id="results" class="list"></div>
+
+<h2>Radio (läuft immer)</h2>
+<div class="grid" id="radios"></div>
+
+<h2>Lieblingsstücke</h2>
+<div class="grid" id="favs"></div>
+
+<div class="bar">
+  <div class="now" id="now">Noch nichts ausgewählt</div>
+  <div class="ctl">
+    <button id="prev" aria-label="Zurück" disabled>◀◀</button>
+    <button id="pp" class="pp" aria-label="Abspielen oder Pause" disabled>▶ Spielen</button>
+    <button id="next" aria-label="Weiter" disabled>▶▶</button>
+  </div>
+</div>
+<audio id="audio" preload="none" playsinline></audio>
+
+<script>
+{
+const RADIOS=[
+  {name:"BR-Klassik",sub:"Bayerischer Rundfunk",url:"https://dispatcher.rndfnk.com/br/brklassik/live/mp3/high"},
+  {name:"WDR 3",sub:"Westdeutscher Rundfunk",url:"https://wdr-wdr3-live.icecastssl.wdr.de/wdr/wdr3/live/mp3/256/stream.mp3"},
+  {name:"Klara",sub:"Belgischer Klassiksender",url:"https://icecast.vrtcdn.be/klara-high.mp3"}
+];
+// Lieblingsstücke: Name für den Knopf + englischer Suchbegriff fürs Internet Archive
+const FAVS=[
+  ["Mondscheinsonate","Beethoven","Beethoven Moonlight Sonata"],
+  ["Für Elise","Beethoven","Beethoven Fur Elise"],
+  ["Neunte Sinfonie","Beethoven","Beethoven Symphony 9"],
+  ["Eine kleine Nachtmusik","Mozart","Mozart Eine kleine Nachtmusik"],
+  ["Klarinettenkonzert","Mozart","Mozart Clarinet Concerto"],
+  ["Die vier Jahreszeiten","Vivaldi","Vivaldi Four Seasons"],
+  ["Goldberg-Variationen","Bach","Bach Goldberg Variations"],
+  ["Air","Bach","Bach Air on the G String"],
+  ["Nocturnes","Chopin","Chopin Nocturne"],
+  ["An der schönen blauen Donau","Strauss","Strauss Blue Danube"],
+  ["Schwanensee","Tschaikowsky","Tchaikovsky Swan Lake"],
+  ["Moldau","Smetana","Smetana Moldau Vltava"]
+];
+// Deutsche Begriffe, die im Archiv meist englisch heißen
+const DICT={"mondscheinsonate":"moonlight sonata","für elise":"fur elise","vier jahreszeiten":"four seasons",
+ "jahreszeiten":"four seasons","sinfonie":"symphony","symphonie":"symphony","klavierkonzert":"piano concerto",
+ "violinkonzert":"violin concerto","geigenkonzert":"violin concerto","klavier":"piano","geige":"violin",
+ "cello":"cello","orgel":"organ","schwanensee":"swan lake","nussknacker":"nutcracker","blauen donau":"blue danube",
+ "donau":"blue danube","zauberflöte":"magic flute","hochzeitsmarsch":"wedding march","neunte":"symphony 9",
+ "fünfte":"symphony 5","tschaikowsky":"tchaikovsky","händel":"handel","dvořák":"dvorak","dvorak":"dvorak",
+ "schubert":"schubert","brahms":"brahms","weihnachtsoratorium":"christmas oratorio","messias":"messiah",
+ "streichquartett":"string quartet","oper":"opera","walzer":"waltz","ruhig":"","ruhiges":"","fröhlich":"","fröhliches":""};
+const FILL=/\b(spiel|spiele|spielen|mal|bitte|etwas|was|ich|möchte|will|würde|gern|gerne|hören|von|vom|die|der|das|den|dem|ein|eine|einen|musik|stück|stücke|mir|doch|noch|und)\b/g;
+
+const $=id=>document.getElementById(id),audio=$("audio");
+let queue=[],idx=0,title="";
+
+const btn=(t,s,cls="")=>`<button class="big ${cls}">${t}<small>${s}</small></button>`;
+$("radios").innerHTML=RADIOS.map(r=>btn(r.name,r.sub,"radio")).join("");
+$("favs").innerHTML=FAVS.map(f=>btn(f[0],f[1])).join("");
+[...$("radios").children].forEach((b,i)=>b.onclick=()=>playRadio(RADIOS[i]));
+[...$("favs").children].forEach((b,i)=>b.onclick=()=>search(FAVS[i][2],FAVS[i][0],true));
+
+function toQuery(text){
+  let t=" "+text.toLowerCase()+" ";
+  for(const k of Object.keys(DICT).sort((a,b)=>b.length-a.length)) t=t.split(k).join(" "+DICT[k]+" ");
+  return t.replace(FILL," ").replace(/[^\p{L}\p{N} ]/gu," ").replace(/\s+/g," ").trim();
+}
+
+async function ia(q){
+  const u="https://archive.org/advancedsearch.php?q="+encodeURIComponent(q)+
+    "&fl[]=identifier&fl[]=title&fl[]=creator&sort[]=downloads+desc&rows=8&output=json";
+  const r=await fetch(u);return (await r.json()).response.docs||[];
+}
+async function search(raw,label,autoplay){
+  const q=toQuery(raw);
+  $("results").innerHTML=`<div class="msg">Ich suche „${label||raw}“ …</div>`;
+  if(!q){$("results").innerHTML=`<div class="msg">Das habe ich nicht verstanden. Bitte noch einmal.</div>`;return}
+  try{
+    const words=q.split(" ").map(w=>`"${w}"`).join(" AND ");
+    let docs=await ia(`(${words}) AND mediatype:audio AND (subject:classical OR subject:"classical music" OR collection:musopen)`);
+    if(!docs.length) docs=await ia(`(${words}) AND mediatype:audio`);
+    if(!docs.length){$("results").innerHTML=`<div class="msg">Leider nichts gefunden. Versuchen Sie es mit einem anderen Namen.</div>`;return}
+    $("results").innerHTML=`<h2>Gefunden</h2>`+docs.map(d=>btn(clip(d.title),[].concat(d.creator||"").join(", ")||"Aufnahme")).join("");
+    [...$("results").querySelectorAll("button")].forEach((b,i)=>b.onclick=()=>playItem(docs[i]));
+    if(autoplay) playItem(docs[0]);
+  }catch(e){$("results").innerHTML=`<div class="msg">Keine Verbindung zum Internet. Bitte später noch einmal.</div>`}
+}
+const clip=s=>{s=[].concat(s||"Ohne Titel")[0];return s.length>70?s.slice(0,68)+"…":s};
+
+async function playItem(doc){
+  setNow("Lade …");
+  try{
+    const m=await (await fetch("https://archive.org/metadata/"+doc.identifier)).json();
+    const files=(m.files||[]).filter(f=>/mp3/i.test(f.format||"")||/\.mp3$/i.test(f.name))
+      .filter(f=>!/_64kb|sample/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+    if(!files.length){setNow("Dieses Stück lässt sich nicht abspielen. Bitte ein anderes wählen.");return}
+    title=clip(doc.title);
+    queue=files.map(f=>({src:`https://archive.org/download/${doc.identifier}/${encodeURIComponent(f.name)}`,name:f.title||f.name.replace(/\.mp3$/i,"")}));
+    idx=0;start();
+  }catch(e){setNow("Keine Verbindung zum Internet.")}
+}
+function playRadio(r){queue=[{src:r.url,name:"Live"}];idx=0;title=r.name;start()}
+function start(){
+  const t=queue[idx];audio.src=t.src;
+  audio.play().catch(()=>setNow("Bitte auf ▶ Spielen drücken."));
+  const part=queue.length>1?` · Teil ${idx+1} von ${queue.length}`:"";
+  setNow(`<b>${title}</b>${part}`);
+  if("mediaSession" in navigator) navigator.mediaSession.metadata=new MediaMetadata({title,artist:queue.length>1?`Teil ${idx+1}`:"Klassik"});
+  ["prev","next","pp"].forEach(id=>$(id).disabled=false);
+  $("prev").disabled=idx===0;$("next").disabled=idx>=queue.length-1;
+}
+const setNow=h=>$("now").innerHTML=h;
+audio.onended=()=>{if(idx<queue.length-1){idx++;start()}};
+audio.onplay=()=>$("pp").textContent="❚❚ Pause";
+audio.onpause=()=>$("pp").textContent="▶ Spielen";
+audio.onerror=()=>setNow("Das ließ sich nicht abspielen. Bitte etwas anderes wählen.");
+$("pp").onclick=()=>audio.paused?audio.play():audio.pause();
+$("prev").onclick=()=>{if(idx>0){idx--;start()}};
+$("next").onclick=()=>{if(idx<queue.length-1){idx++;start()}};
+if("mediaSession" in navigator){
+  const ms=navigator.mediaSession;
+  ms.setActionHandler("play",()=>audio.play());ms.setActionHandler("pause",()=>audio.pause());
+  ms.setActionHandler("nexttrack",()=>$("next").click());ms.setActionHandler("previoustrack",()=>$("prev").click());
+}
+
+$("form").onsubmit=e=>{e.preventDefault();const v=$("q").value.trim();if(v){$("q").blur();search(v,v,true)}};
+
+// Spracherkennung (Safari ab iOS 14.5)
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR){$("micText").textContent="Sprechen geht hier nicht. Bitte unten eintippen.";$("mic").disabled=true;$("mic").style.opacity=.5}
+else{
+  let rec=null;
+  $("mic").onclick=()=>{
+    if(rec){rec.stop();return}
+    rec=new SR();rec.lang="de-DE";rec.interimResults=true;rec.maxAlternatives=1;
+    let final="";
+    rec.onresult=e=>{const r=[...e.results].map(x=>x[0].transcript).join(" ");$("heard").textContent="„"+r+"“";
+      if(e.results[e.results.length-1].isFinal) final=r};
+    rec.onend=()=>{$("mic").classList.remove("on");$("micText").textContent="Drücken und sagen, was Sie hören möchten";rec=null;
+      if(final) search(final,final,true)};
+    rec.onerror=()=>{$("heard").textContent="Das hat nicht geklappt. Bitte noch einmal drücken."};
+    $("mic").classList.add("on");$("micText").textContent="Ich höre zu … (zum Beenden drücken)";$("heard").textContent="";
+    try{rec.start()}catch(e){rec=null;$("mic").classList.remove("on")}
+  };
+}
+}
+</script>
+</body>
+</html>

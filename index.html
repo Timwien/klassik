@@ -177,10 +177,68 @@ async function search(text){
   }catch(e){}
   if(!picks.length) picks=await simpleSearch(text);
   setBusy(false);
-  if(!picks.length){say("Leider nichts gefunden. Bitte anders sagen.");return}
-  say("");
+  showPicks(picks,"");
+}
+function showPicks(picks,heardText){
+  if(!picks.length){say((heardText?"„"+heardText+"“ – ":"")+"Leider nichts gefunden. Bitte anders sagen.");return}
+  say(heardText?"„"+heardText+"“":"");
   playItem(picks[0].identifier,picks[0].titel);
   showAlts(picks.slice(1,5));
+}
+
+/* ---------- Aufnahme: Stimme aufnehmen, an Mistral schicken (über den Worker) ---------- */
+const CAN_RECORD=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+let recState=null; // läuft gerade eine Aufnahme?
+async function recordAndSearch(){
+  if(recState){recState.stop();return}            // zweiter Tipp beendet die Aufnahme
+  audio.pause();
+  const AC=window.AudioContext||window.webkitAudioContext;
+  const ctx=AC?new AC():null;                      // im Fingertipp erzeugen, sonst blockiert iOS
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}
+  catch(e){if(ctx)ctx.close();setBusy(false);say("Bitte das Mikrofon erlauben und noch einmal drücken.");return}
+  const mime=["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||"";
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  // Stille erkennen: nach gesprochenen Worten 1,3 Sekunden Ruhe = fertig
+  let spoke=false,lastLoud=Date.now(),noise=1;const t0=Date.now();
+  let an=null,buf=null;
+  if(ctx){an=ctx.createAnalyser();an.fftSize=1024;ctx.createMediaStreamSource(stream).connect(an);buf=new Uint8Array(an.fftSize)}
+  const timer=setInterval(()=>{
+    const now=Date.now();
+    if(an){
+      an.getByteTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++){const v=(buf[i]-128)/128;s+=v*v}
+      const rms=Math.sqrt(s/buf.length);
+      if(now-t0<400) noise=Math.min(noise,Math.max(rms,0.003));
+      if(rms>Math.max(0.025,noise*3)){spoke=true;lastLoud=now}
+    }else if(now-t0>1500) spoke=true;
+    if((spoke&&now-lastLoud>1300)||(!spoke&&now-t0>7000)||now-t0>15000) stop();
+  },100);
+  function stop(){if(rec.state!=="inactive")rec.stop()}
+  recState={stop};
+  $("mic").classList.add("on");$("micText").textContent="Ich höre zu …";say("");
+  rec.onstop=async()=>{
+    clearInterval(timer);recState=null;
+    stream.getTracks().forEach(t=>t.stop());if(ctx)ctx.close();
+    $("mic").classList.remove("on");
+    if(!spoke||!chunks.length){setBusy(false);say("Ich habe nichts gehört. Bitte noch einmal drücken.");return}
+    const type=(rec.mimeType||mime||"audio/mp4").split(";")[0];
+    const blob=new Blob(chunks,{type});
+    setBusy(true);say("Ich suche …");$("altBox").classList.add("hide");
+    let j=null;
+    try{
+      const ctl=new AbortController();setTimeout(()=>ctl.abort(),25000);
+      const r=await fetch(API,{method:"POST",headers:{"Content-Type":type},body:blob,signal:ctl.signal});
+      j=await r.json();
+    }catch(e){}
+    let picks=((j&&j.picks)||[]).filter(p=>p.identifier);
+    const heardText=(j&&j.text)||"";
+    if(!picks.length&&heardText) picks=await simpleSearch(heardText);
+    setBusy(false);
+    if(!j){say("Keine Verbindung. Bitte noch einmal versuchen.");return}
+    showPicks(picks,heardText);
+  };
+  rec.start(250);
 }
 function showAlts(rest){
   $("altBox").classList.toggle("hide",!rest.length);
@@ -241,7 +299,10 @@ if("mediaSession" in navigator){
 /* ---------- Mikrofon (Spracherkennung von Safari) ---------- */
 function setBusy(on){$("mic").classList.toggle("busy",on);$("micText").textContent=on?"Einen Moment …":"Drücken und Wunsch sagen"}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){$("micText").textContent="Sprechen geht hier leider nicht";$("mic").disabled=true;$("mic").style.opacity=.5}
+if(CAN_RECORD){
+  $("mic").onclick=()=>{if(!$("mic").classList.contains("busy")) recordAndSearch()};
+}
+else if(!SR){$("micText").textContent="Sprechen geht hier leider nicht";$("mic").disabled=true;$("mic").style.opacity=.5}
 else{
   // Auf dem iPhone kommt oft kein "fertig"-Signal. Deshalb: nach 1,5 Sekunden Stille selbst beenden
   // und mit dem zuletzt erkannten Text suchen, egal wie die Erkennung endet.

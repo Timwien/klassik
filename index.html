@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-title" content="Klassik">
 <meta name="theme-color" content="#1d2a24">
 <title>Klassik</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* VOICE: ruhig, warm, nichts Überflüssiges. Für einen älteren Herrn.
@@ -223,33 +225,51 @@ async function recordAndSearch(){
   if(recState){recState.stop();return}            // zweiter Tipp beendet die Aufnahme
   audio.pause();
   const AC=window.AudioContext||window.webkitAudioContext;
-  const ctx=AC?new AC():null;                      // im Fingertipp erzeugen, sonst blockiert iOS
+  let ctx=null;                                    // im Fingertipp erzeugen, sonst blockiert iOS
+  try{ctx=AC?new AC():null;if(ctx&&ctx.state==="suspended")ctx.resume().catch(()=>{})}catch(e){ctx=null}
+  const closeCtx=()=>{try{if(ctx)ctx.close().catch(()=>{})}catch(e){}};
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}
-  catch(e){if(ctx)ctx.close();setBusy(false);say("Bitte das Mikrofon erlauben und noch einmal drücken.");return}
-  const mime=["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||"";
-  const rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch(e){
+    closeCtx();setBusy(false);
+    say(e&&e.name==="NotAllowedError"?"Bitte das Mikrofon erlauben und noch einmal drücken."
+      :"Das Mikrofon lässt sich nicht starten ("+((e&&e.name)||"unbekannt")+"). Bitte eintippen.");
+    return;
+  }
+  let rec,mime="";
+  try{
+    mime=["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||"";
+    rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  }catch(e){
+    stream.getTracks().forEach(t=>t.stop());closeCtx();setBusy(false);
+    say("Aufnehmen geht auf diesem Handy nicht ("+((e&&e.name)||"unbekannt")+"). Bitte eintippen.");
+    return;
+  }
   const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-  // Stille erkennen: nach gesprochenen Worten 1,3 Sekunden Ruhe = fertig
-  let spoke=false,lastLoud=Date.now(),noise=1;const t0=Date.now();
+  // Stille erkennen: nach gesprochenen Worten 1,3 Sekunden Ruhe = fertig.
+  // Liefert die Lautstärkemessung nur Nullen (ältere iPhones), wird stattdessen 6 Sekunden aufgenommen.
+  let spoke=false,lastLoud=Date.now(),noise=1,loudest=0,deaf=false;const t0=Date.now();
   let an=null,buf=null;
-  if(ctx){an=ctx.createAnalyser();an.fftSize=1024;ctx.createMediaStreamSource(stream).connect(an);buf=new Uint8Array(an.fftSize)}
+  try{if(ctx){an=ctx.createAnalyser();an.fftSize=1024;ctx.createMediaStreamSource(stream).connect(an);buf=new Uint8Array(an.fftSize)}}
+  catch(e){an=null}
   const timer=setInterval(()=>{
     const now=Date.now();
-    if(an){
+    if(an&&!deaf){
       an.getByteTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++){const v=(buf[i]-128)/128;s+=v*v}
-      const rms=Math.sqrt(s/buf.length);
+      const rms=Math.sqrt(s/buf.length);loudest=Math.max(loudest,rms);
       if(now-t0<400) noise=Math.min(noise,Math.max(rms,0.003));
       if(rms>Math.max(0.025,noise*3)){spoke=true;lastLoud=now}
+      if(now-t0>1500&&loudest<0.0005) deaf=true;  // Messung tot
     }else if(now-t0>1500) spoke=true;
-    if((spoke&&now-lastLoud>1300)||(!spoke&&now-t0>7000)||now-t0>15000) stop();
+    const fixedEnd=(!an||deaf)&&now-t0>6000;
+    if(fixedEnd||(an&&!deaf&&spoke&&now-lastLoud>1300)||(!spoke&&now-t0>7000)||now-t0>15000) stop();
   },100);
-  function stop(){if(rec.state!=="inactive")rec.stop()}
-  recState={stop};
-  $("mic").classList.add("on");$("micText").textContent="Ich höre zu …";say("");
+  function stop(){try{if(rec.state!=="inactive")rec.stop()}catch(e){}}
+  recState={stop:()=>{if(Date.now()-t0>1000)spoke=true;stop()}}; // Tipp zum Beenden: Aufnahme gilt als gesprochen
+  $("mic").classList.add("on");$("micText").textContent="Ich höre zu …";say("Zum Beenden noch einmal drücken.");
   rec.onstop=async()=>{
     clearInterval(timer);recState=null;
-    stream.getTracks().forEach(t=>t.stop());if(ctx)ctx.close();
+    stream.getTracks().forEach(t=>t.stop());closeCtx();
     $("mic").classList.remove("on");
     if(!spoke||!chunks.length){setBusy(false);say("Ich habe nichts gehört. Bitte noch einmal drücken.");return}
     const type=(rec.mimeType||mime||"audio/mp4").split(";")[0];
@@ -266,9 +286,12 @@ async function recordAndSearch(){
     if(!picks.length&&heardText) picks=await simpleSearch(heardText);
     setBusy(false);
     if(!j){say("Keine Verbindung. Bitte noch einmal versuchen.");return}
+    if(!heardText&&!picks.length){say("Ich habe dich nicht verstanden. Bitte noch einmal oder eintippen.");return}
     showPicks(picks,heardText);
   };
-  rec.start(250);
+  // ohne Zeitscheiben aufnehmen: ältere iPhones liefern sonst kaputte Stücke
+  try{rec.start()}catch(e){clearInterval(timer);recState=null;stream.getTracks().forEach(t=>t.stop());closeCtx();
+    $("mic").classList.remove("on");setBusy(false);say("Aufnehmen geht auf diesem Handy nicht. Bitte eintippen.")}
 }
 function showAlts(rest){
   $("altBox").classList.toggle("hide",!rest.length);
@@ -334,7 +357,7 @@ if("mediaSession" in navigator){
 function setBusy(on){$("mic").classList.toggle("busy",on);$("micText").textContent=on?"Einen Moment …":"Drücken und Wunsch sagen"}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(CAN_RECORD){
-  $("mic").onclick=()=>{if(!$("mic").classList.contains("busy")) recordAndSearch()};
+  $("mic").onclick=()=>{if(!$("mic").classList.contains("busy")) recordAndSearch().catch(e=>{recState=null;$("mic").classList.remove("on");setBusy(false);say("Aufnahme ging schief ("+((e&&(e.name||e.message))||"unbekannt")+"). Bitte eintippen.")})};
 }
 else if(!SR){$("micText").textContent="Sprechen geht hier leider nicht";$("mic").disabled=true;$("mic").style.opacity=.5}
 else{

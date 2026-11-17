@@ -47,6 +47,16 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 .radio{background:#33473d;text-align:center;align-items:center}
 .recent{background:#2e4238}
 .hide{display:none}
+.helpbtn{display:block;width:100%;height:46px;margin-top:8px;border-radius:14px;background:transparent;border:2px solid #3d5247;font-size:17px;color:var(--soft)}
+.help{position:fixed;inset:0;z-index:8;overflow-y:auto;background:var(--bg);
+  padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 24px)}
+.help h1{font-size:28px;margin:0 0 6px;color:var(--brass)}
+.help h2{font-size:22px;margin:22px 0 8px}
+.help ol{margin:0;padding-left:26px}.help li{margin:0 0 10px}
+.help p{margin:0 0 10px}
+.help .or{color:var(--soft)}
+.help svg{width:22px;height:22px;vertical-align:-4px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.help .close{display:block;width:100%;height:68px;margin-top:22px;border-radius:18px;background:var(--brass);color:#1d2a24;font-size:24px;font-weight:700}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#101a15;border-top:3px solid var(--brass);
   padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -74,6 +84,7 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
   <input id="q" type="search" enterkeyhint="search" placeholder="Oder eintippen, z.B. Turandot" aria-label="Suchbegriff eintippen">
   <button aria-label="Suchen">Suchen</button>
 </form>
+<button class="helpbtn" onclick="document.getElementById('help').classList.remove('hide')">? Hilfe: kein Ton, lauter, leiser</button>
 <div class="heard" id="heard"></div>
 
 <div id="altBox" class="hide"><h2>Andere Aufnahmen</h2><div class="grid" id="alts"></div></div>
@@ -92,6 +103,22 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
     <button id="pp" class="pp" aria-label="Abspielen oder Pause" disabled>▶ Spielen</button>
     <button id="next" aria-label="Weiter" disabled>▶▶</button>
   </div>
+</div>
+<div class="help hide" id="help" role="dialog" aria-label="Hilfe">
+  <h1>Hilfe</h1>
+  <h2>Kein Ton?</h2>
+  <ol>
+    <li>Ist der Lautsprecher eingeschaltet?</li>
+    <li><b>Bluetooth einschalten:</b> Mit dem Finger vom unteren Rand des Handys nach oben wischen. Es erscheint ein Feld mit Knöpfen. Auf das Bluetooth-Zeichen <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg> tippen, bis es blau ist. Dann die runde Taste unten am Handy drücken.
+      <p class="or">Oder: Die runde Taste lange gedrückt halten und sagen: „Bluetooth einschalten“.</p></li>
+    <li>Das Stück noch einmal antippen.</li>
+  </ol>
+  <h2>Lauter oder leiser</h2>
+  <p>Mit den zwei Tasten an der linken Seite des Handys. Obere Taste: lauter. Untere Taste: leiser.</p>
+  <p class="or">Oder vom unteren Rand nach oben wischen und den Balken mit dem Lautsprecher-Zeichen nach oben oder unten schieben.</p>
+  <h2>Die App reagiert nicht?</h2>
+  <p>Unten rechts auf „↻ Neu starten“ tippen.</p>
+  <button class="close" onclick="document.getElementById('help').classList.add('hide')">Schließen</button>
 </div>
 <audio id="audio" preload="none" playsinline></audio>
 <button class="oops" id="oops" onclick="location.reload()">Da ist etwas schiefgegangen.<br>Hier tippen zum Neustarten<small id="oopsInfo"></small></button>

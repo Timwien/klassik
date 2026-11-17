@@ -112,7 +112,7 @@ window.addEventListener("unhandledrejection",e=>{
 });
 </script>
 <script>
-{
+(function(){ // als Funktion statt Block: ältere Safari-Versionen finden sonst $ nicht
 const API="https://klassik-suche-opa.wienboeker-consulting.workers.dev/";
 const RADIOS=[
   {name:"BR-Klassik",url:"https://dispatcher.rndfnk.com/br/brklassik/live/mp3/high"},
@@ -367,7 +367,7 @@ else{
     try{rec.start()}catch(e){rec=null;$("mic").classList.remove("on");setBusy(false)}
   };
 }
-}
+})();
 </script>
 </body>
 </html>

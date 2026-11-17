@@ -53,6 +53,7 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 .oops{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:9;display:none;
   padding:18px;border-radius:18px;background:var(--red);color:#fff;font-size:20px;font-weight:700;text-align:center}
 .oops.show{display:block}
+.oops small{display:block;margin-top:10px;font-size:13px;font-weight:400;opacity:.9;word-break:break-word}
 .now b{color:var(--ink)}
 .ctl{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px}
 .ctl button{height:68px;border-radius:18px;background:var(--panel);font-size:22px;font-weight:700}
@@ -91,12 +92,24 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
   </div>
 </div>
 <audio id="audio" preload="none" playsinline></audio>
-<button class="oops" id="oops" onclick="location.reload()">Da ist etwas schiefgegangen.<br>Hier tippen zum Neustarten</button>
+<button class="oops" id="oops" onclick="location.reload()">Da ist etwas schiefgegangen.<br>Hier tippen zum Neustarten<small id="oopsInfo"></small></button>
 
 <script>
-// Bei einem unerwarteten Fehler großen Neustart-Knopf zeigen
-window.addEventListener("error",()=>document.getElementById("oops").classList.add("show"));
-window.addEventListener("unhandledrejection",()=>document.getElementById("oops").classList.add("show"));
+// Bei einem unerwarteten Fehler großen Neustart-Knopf zeigen,
+// darunter klein die eigentliche Fehlermeldung (hilft bei der Fehlersuche per Foto)
+function oops(info){
+  document.getElementById("oops").classList.add("show");
+  const el=document.getElementById("oopsInfo");
+  if(el&&!el.textContent) el.textContent=String(info||"unbekannt").slice(0,200);
+}
+window.addEventListener("error",e=>{
+  const file=(e.filename||"").split("/").pop();
+  oops((e.message||"Fehler")+(e.lineno?` (${file||"Seite"} Zeile ${e.lineno})`:""));
+});
+window.addEventListener("unhandledrejection",e=>{
+  const r=e.reason;
+  oops("Promise: "+(r&&(r.name||r.message)?`${r.name||""} ${r.message||""}`.trim():String(r)));
+});
 </script>
 <script>
 {
@@ -304,13 +317,17 @@ audio.onended=()=>{if(idx<queue.length-1){idx++;start()}};
 audio.onplay=()=>$("pp").textContent="❚❚ Pause";
 audio.onpause=()=>$("pp").textContent="▶ Spielen";
 audio.onerror=()=>setNow("Das ließ sich nicht abspielen. Bitte etwas anderes wählen.");
-$("pp").onclick=()=>audio.paused?audio.play():audio.pause();
+// play() kann scheitern (z.B. noch nichts geladen, kein Netz): dann freundlich melden statt roter Fehler
+const resume=()=>{if(!audio.src||!queue.length) return;audio.play().catch(()=>setNow(`<b>${esc(title)}</b> · bitte auf ▶ drücken`))};
+$("pp").onclick=()=>audio.paused?resume():audio.pause();
 $("prev").onclick=()=>{if(idx>0){idx--;start()}};
 $("next").onclick=()=>{if(idx<queue.length-1){idx++;start()}};
 if("mediaSession" in navigator){
   const ms=navigator.mediaSession;
-  ms.setActionHandler("play",()=>audio.play());ms.setActionHandler("pause",()=>audio.pause());
-  ms.setActionHandler("nexttrack",()=>$("next").click());ms.setActionHandler("previoustrack",()=>$("prev").click());
+  // Ältere iPhones kennen nicht jede Taste: dann diese einfach weglassen
+  const set=(a,f)=>{try{ms.setActionHandler(a,f)}catch(e){}};
+  set("play",resume);set("pause",()=>audio.pause());
+  set("nexttrack",()=>$("next").click());set("previoustrack",()=>$("prev").click());
 }
 
 /* ---------- Mikrofon (Spracherkennung von Safari) ---------- */

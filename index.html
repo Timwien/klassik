@@ -47,7 +47,10 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 .radio{background:#33473d;text-align:center;align-items:center}
 .recent{background:#2e4238}
 .hide{display:none}
-.helpbtn{display:block;width:100%;height:46px;margin-top:8px;border-radius:14px;background:transparent;border:2px solid #3d5247;font-size:17px;color:var(--soft)}
+.tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.helpbtn{display:block;width:100%;height:46px;border-radius:14px;background:transparent;border:2px solid #3d5247;font-size:17px;color:var(--soft)}
+h2.first{margin-top:4px}
+.list{background:#3a3524;border-color:#5a4c2a}
 .help{position:fixed;inset:0;z-index:8;overflow-y:auto;background:var(--bg);
   padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 24px)}
 .help h1{font-size:28px;margin:0 0 6px;color:var(--brass)}
@@ -59,9 +62,14 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 .help .close{display:block;width:100%;height:68px;margin-top:22px;border-radius:18px;background:var(--brass);color:#1d2a24;font-size:24px;font-weight:700}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#101a15;border-top:3px solid var(--brass);
   padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
-.top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.now{flex:1;font-size:17px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.reload{flex:none;height:40px;padding:0 12px;border-radius:12px;background:var(--panel);font-size:15px;color:var(--soft)}
+/* Laufband: passt der Text nicht in die Zeile, läuft er von rechts nach links durch */
+.now{width:100%;margin-bottom:8px;font-size:19px;line-height:28px;height:28px;color:var(--soft);white-space:nowrap;overflow:hidden}
+.now .tx{display:inline-block}
+.now .seg{display:inline-block}
+.now .run .seg{padding-right:56px}
+.now .run{animation:ticker var(--d,12s) linear 1.5s infinite}
+@keyframes ticker{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.now{white-space:normal;height:auto}.now .run{animation:none}.now .seg+.seg{display:none}}
 .oops{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:9;display:none;
   padding:18px;border-radius:18px;background:var(--red);color:#fff;font-size:20px;font-weight:700;text-align:center}
 .oops.show{display:block}
@@ -76,7 +84,9 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 </head>
 <body>
 
-<button class="mic" id="mic" aria-label="Sprechen">
+<h2 class="first">Playlists</h2>
+<div class="grid" id="lists"></div>
+<button class="mic" style="margin-top:14px" id="mic" aria-label="Sprechen">
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V5a4 4 0 0 0-8 0v6a4 4 0 0 0 4 4Zm7-4a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-3.08A7 7 0 0 0 19 11Z"/></svg>
   <span id="micText">Drücken und Wunsch sagen</span>
 </button>
@@ -84,7 +94,10 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
   <input id="q" type="search" enterkeyhint="search" placeholder="Oder eintippen, z.B. Turandot" aria-label="Suchbegriff eintippen">
   <button aria-label="Suchen">Suchen</button>
 </form>
-<button class="helpbtn" onclick="document.getElementById('help').classList.remove('hide')">? Hilfe: kein Ton, lauter, leiser</button>
+<div class="tools">
+  <button class="helpbtn" onclick="document.getElementById('help').classList.remove('hide')">? Hilfe</button>
+  <button class="helpbtn" onclick="location.reload()" aria-label="App neu starten">↻ Neu starten</button>
+</div>
 <div class="heard" id="heard"></div>
 
 <div id="altBox" class="hide"><h2>Andere Aufnahmen</h2><div class="grid" id="alts"></div></div>
@@ -97,7 +110,7 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 <div class="grid" id="favs"></div>
 
 <div class="bar">
-  <div class="top"><div class="now" id="now">Noch nichts ausgewählt</div><button class="reload" onclick="location.reload()" aria-label="App neu starten">↻ Neu starten</button></div>
+  <div class="now" id="now" aria-live="polite">Noch nichts ausgewählt</div>
   <div class="ctl">
     <button id="prev" aria-label="Zurück" disabled>◀◀</button>
     <button id="pp" class="pp" aria-label="Abspielen oder Pause" disabled>▶ Spielen</button>
@@ -117,7 +130,7 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
   <p>Mit den zwei Tasten an der linken Seite des Handys. Obere Taste: lauter. Untere Taste: leiser.</p>
   <p class="or">Oder vom unteren Rand nach oben wischen und den Balken mit dem Lautsprecher-Zeichen nach oben oder unten schieben.</p>
   <h2>Die App reagiert nicht?</h2>
-  <p>Unten rechts auf „↻ Neu starten“ tippen.</p>
+  <p>Oben auf „↻ Neu starten“ tippen.</p>
   <button class="close" onclick="document.getElementById('help').classList.add('hide')">Schließen</button>
 </div>
 <audio id="audio" preload="none" playsinline></audio>
@@ -159,6 +172,31 @@ const FAVS=[
   {name:"An der schönen blauen Donau",by:"Strauss",picks:[["JOHANNSTRAUSSTheBlueDanube-Waltz-NEWTRANSFERJOHANNSTRAUSSTheBlueDanubeWaltz","Blaue Donau – Szell"],["AnDerSchnemBlauenDonau","Blaue Donau – Strauss"],["TheBlueDanube","The Blue Danube – Strauss"]]},
   {name:"Die Moldau",by:"Smetana",picks:[["Friedrich_Smetana_-_Die_Moldau","Die Moldau – Smetana"],["SMETANATheMoldau-NEWTRANSFER","Die Moldau – Kindler"],["78_from-bohemias-meadows-and-forests-z-eskyh-luhv-a-hjv_czech-philharmonic-orc_gbia7013465","Die Moldau – Kubelik"]]}
 ];
+// Playlists: feste Liste einzelner Spuren [archive.org-Kennung, Dateiname, Anzeigetitel], laufen nacheinander durch
+const PLAYLISTS=[
+  {name:"Brass",by:"ruhige Stücke",tracks:[
+    ["jamendo-147111", "03-1226428-Horn Ensemble D3-Mozart_ Divertimento No. 1, K. 439b_ III. Adagio.mp3", "Adagio aus Divertimento Nr. 1 – Mozart"],
+    ["bolero_202012", "Largo.mp3", "Largo – Canadian Brass"],
+    ["johannes-leuftink-lars-mechelke-sascha-blaue-deutsches-horn-ensemble-salut-a-la-foret", "23. Sieben Lieder aus dem Buche der Liebe für Sopran oder Tenor, Op. 39 (Franz Abt) No. 1., Wenn die Schwalben heimwärts ziehen Arr. for Four Horns.mp3", "Wenn die Schwalben heimwärts ziehen – Abt"],
+    ["the-canadian-brass-ragtime", "The Canadian Brass 1995 – Ragtime!/10. Amazing Grace.mp3", "Amazing Grace"],
+    ["lp_tower-music_chamber-brass-ensemble", "disc1/01.09. Jesu, Melne Freude.mp3", "Jesu, meine Freude (Choral)"],
+    ["bolero_202012", "Jesu, Joy of Man's Desiring.mp3", "Jesus bleibet meine Freude – Bach"],
+    ["unlp-1031b-sanders-quintet-i", "UNLP1031b Berezowsky Brass Suite (ii).mp3", "Brass Suite, 2. Satz – Berezowsky"],
+    ["lp_the-new-york-philharmonic-brass-ensemble_the-new-york-philharmonic-brass-ensemble", "disc1/01.02. Ewald Symphony for Five-Part Brass Choir: 2nd Movement - Adagio.mp3", "Adagio aus der Bläsersinfonie – Ewald"],
+    ["johannes-leuftink-lars-mechelke-sascha-blaue-deutsches-horn-ensemble-salut-a-la-foret", "08. Quatuors originaux for Four Horns in F Major, Op. 75 (Carl August Hänsel) VII. Adagio religioso.mp3", "Adagio religioso – Hänsel"],
+    ["lp_tower-music_chamber-brass-ensemble", "disc1/02.02. O Haupt Voll Bluf Und Wunden A Love Song.mp3", "O Haupt voll Blut und Wunden (Choral)"],
+    ["lp_baroque-brass_the-new-york-brass-quintet_0", "disc1/01.03. Music for Queen Mary II.mp3", "Musik für Königin Mary II – Purcell"],
+    ["bolero_202012", "Sarabande.mp3", "Sarabande – Canadian Brass"],
+    ["jamendo-147111", "08-1226433-Horn Ensemble D3-Mozart_ Divertimento No. 2, K. 439b_ III. Larghetto.mp3", "Larghetto aus Divertimento Nr. 2 – Mozart"],
+    ["lp_ancient-modern_the-brass-ensemble-of-the-vienna-state-ope", "disc1/01.02. Schein: Paduana & Gaillard.mp3", "Paduana und Gaillarde – Schein"],
+    ["canadian-brass-red-white-brass", "Canadian Brass 1991 – Red, White & Brass/01. Voluntary on Old Hundredth.mp3", "Voluntary on Old Hundredth"],
+    ["lp_baroque-brass_the-new-york-brass-quintet_0", "disc1/01.07. Contrapunctus IX (from Art of the Fugue).mp3", "Contrapunctus IX – Bach"],
+    ["unlp-1031b-sanders-quintet-i", "UNLP1031b Sanders Quintet (ii).mp3", "Bläserquintett, 2. Satz – Sanders"],
+    ["lp_the-glorious-sound-of-brass_philadelphia-brass-ensemble-bonelli-brade", "disc1/02.01. Providebam Dominum.mp3", "Providebam Dominum (Motette)"],
+    ["johannes-leuftink-lars-mechelke-sascha-blaue-deutsches-horn-ensemble-salut-a-la-foret", "24. Sänger Morgenfahrt, vier Lieder für vierstimmigen Männerchor, Op. 147 (Franz Abt) No. 1, Waldesgruss Arr. for Four Horns.mp3", "Waldesgruß – Abt"],
+    ["johannes-leuftink-lars-mechelke-sascha-blaue-deutsches-horn-ensemble-salut-a-la-foret", "21. Drei Lieder für Sopran und Alt, Op. 137 (Robert Stark) No. 1, Gute Nacht du mein herziges Kind Arr. for Four Horns.mp3", "Gute Nacht, du mein herziges Kind – Stark"]
+  ]}
+];
 // Notlösung ohne KI: deutsche Begriffe, die im Archiv meist englisch heißen
 const DICT={"mondscheinsonate":"moonlight sonata","für elise":"fur elise","vier jahreszeiten":"four seasons",
  "sinfonie":"symphony","symphonie":"symphony","klavierkonzert":"piano concerto","violinkonzert":"violin concerto",
@@ -171,11 +209,25 @@ const $=id=>document.getElementById(id),audio=$("audio");
 let queue=[],idx=0,title="";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const btn=(t,s,cls="")=>`<button class="b ${cls}"><span>${esc(t)}</span>${s?`<small>${esc(s)}</small>`:""}</button>`;
-const setNow=h=>$("now").innerHTML=h;
+let nowHtml="";
+function setNow(h){
+  nowHtml=h;
+  const el=$("now");
+  el.innerHTML=`<span class="tx"><span class="seg">${h}</span></span>`;
+  const tx=el.firstChild;nowW=el.clientWidth;
+  if(tx.offsetWidth<=nowW) return;     // passt in die Zeile: steht still
+  tx.insertAdjacentHTML("beforeend",`<span class="seg" aria-hidden="true">${h}</span>`);
+  tx.style.setProperty("--d",Math.max(6,tx.firstChild.offsetWidth/45)+"s"); // etwa 45 Pixel pro Sekunde
+  tx.classList.add("run");
+}
+let nowW=0;
+window.addEventListener("resize",()=>{const w=$("now").clientWidth;if(nowHtml&&w!==nowW)setNow(nowHtml)});
 const say=t=>$("heard").textContent=t;
 
 $("radios").innerHTML=RADIOS.map(r=>btn(r.name,"","radio")).join("");
 [...$("radios").children].forEach((b,i)=>b.onclick=()=>playRadio(RADIOS[i]));
+$("lists").innerHTML=PLAYLISTS.map(p=>btn(p.name,p.tracks.length+" "+p.by,"list")).join("");
+[...$("lists").children].forEach((b,i)=>b.onclick=()=>{say("");$("altBox").classList.add("hide");playList(PLAYLISTS[i])});
 $("favs").innerHTML=FAVS.map(f=>btn(f.name,f.by)).join("");
 [...$("favs").children].forEach((b,i)=>b.onclick=()=>{
   const p=FAVS[i].picks.map(x=>({identifier:x[0],titel:x[1]}));
@@ -187,8 +239,8 @@ $("favs").innerHTML=FAVS.map(f=>btn(f.name,f.by)).join("");
 const SILENT="data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
 let unlocked=false;
 function unlock(){
-  if(unlocked) return;
-  try{audio.src=SILENT;const p=audio.play();if(p)p.then(()=>{audio.pause();unlocked=true}).catch(()=>{})}catch(e){}
+  if(unlocked||(audio.src&&audio.src!==SILENT)) return;   // läuft schon ein echtes Stück: nicht dazwischenfunken
+  try{audio.src=SILENT;const p=audio.play();if(p)p.then(()=>{if(audio.src===SILENT)audio.pause();unlocked=true}).catch(()=>{})}catch(e){}
 }
 document.addEventListener("touchend",unlock,{capture:true});
 document.addEventListener("click",unlock,{capture:true});
@@ -206,10 +258,11 @@ function saveRecent(entry){
 function renderRecent(){
   const list=loadRecent();
   $("recentBox").classList.toggle("hide",!list.length);
-  $("recent").innerHTML=list.map(e=>btn(e.titel||e.name,e.kind==="radio"?"Radio":"","recent")).join("");
+  $("recent").innerHTML=list.map(e=>btn(e.titel||e.name,e.kind==="radio"?"Radio":e.kind==="list"?"Playlist":"","recent")).join("");
   [...$("recent").children].forEach((b,i)=>b.onclick=()=>{
     const e=list[i];
     if(e.kind==="radio"){const r=RADIOS.find(x=>x.name===e.name);if(r)playRadio(r)}
+    else if(e.kind==="list"){const p=PLAYLISTS.find(x=>x.name===e.name);if(p)playList(p)}
     else playItem(e.id,e.titel);
   });
 }
@@ -354,21 +407,33 @@ async function playItem(id,titel){
     saveRecent({kind:"item",id,titel:title});
   }catch(e){setNow("Keine Verbindung zum Internet.")}
 }
+function playList(p){
+  queue=p.tracks.map(t=>({src:`https://archive.org/download/${encodeURIComponent(t[0])}/${encodeURIComponent(t[1])}`,titel:t[2]}));
+  idx=0;title=p.name;start();saveRecent({kind:"list",name:p.name});
+}
 function playRadio(r){queue=[{src:r.url}];idx=0;title=r.name;start();saveRecent({kind:"radio",name:r.name})}
 function start(){
-  audio.src=queue[idx].src;
-  audio.play().catch(()=>setNow(`<b>${esc(title)}</b> · bitte auf ▶ drücken`));
-  const part=queue.length>1?` · Teil ${idx+1} von ${queue.length}`:"";
-  setNow(`<b>${esc(title)}</b>${part}`);
-  if("mediaSession" in navigator) navigator.mediaSession.metadata=new MediaMetadata({title,artist:queue.length>1?`Teil ${idx+1}`:"Klassik"});
+  const t=queue[idx];
+  unlocked=true;                                  // ab jetzt kein stummer Freischalt-Ton mehr
+  audio.src=t.src;
+  // Playlist: Titel des einzelnen Stücks vorne, dahinter Playlist und Position
+  const head=t.titel||title;
+  const part=queue.length>1?` · ${t.titel?`${esc(title)} · Stück`:"Teil"} ${idx+1} von ${queue.length}`:"";
+  audio.play().catch(()=>{if(queue[idx]===t)setNow(`<b>${esc(head)}</b> · bitte auf ▶ drücken`)});
+  setNow(`<b>${esc(head)}</b>${part}`);
+  try{if("mediaSession" in navigator) navigator.mediaSession.metadata=new MediaMetadata({title:head,artist:t.titel?title:queue.length>1?`Teil ${idx+1}`:"Klassik"})}catch(e){}
   $("pp").disabled=false;$("prev").disabled=idx===0;$("next").disabled=idx>=queue.length-1;
 }
 audio.onended=()=>{if(idx<queue.length-1){idx++;start()}};
 audio.onplay=()=>$("pp").textContent="❚❚ Pause";
 audio.onpause=()=>$("pp").textContent="▶ Spielen";
-audio.onerror=()=>setNow("Das ließ sich nicht abspielen. Bitte etwas anderes wählen.");
+audio.onerror=()=>{
+  if(!audio.src||audio.src.startsWith("data:")) return;   // stummer Freischalt-Ton, kein echtes Stück
+  if(queue[idx]&&queue[idx].titel&&idx<queue.length-1){idx++;start();return} // Playlist: kaputtes Stück überspringen
+  setNow("Das ließ sich nicht abspielen. Bitte etwas anderes wählen.");
+};
 // play() kann scheitern (z.B. noch nichts geladen, kein Netz): dann freundlich melden statt roter Fehler
-const resume=()=>{if(!audio.src||!queue.length) return;audio.play().catch(()=>setNow(`<b>${esc(title)}</b> · bitte auf ▶ drücken`))};
+const resume=()=>{if(!audio.src||!queue.length) return;audio.play().catch(()=>setNow(`<b>${esc(queue[idx].titel||title)}</b> · bitte auf ▶ drücken`))};
 $("pp").onclick=()=>audio.paused?resume():audio.pause();
 $("prev").onclick=()=>{if(idx>0){idx--;start()}};
 $("next").onclick=()=>{if(idx<queue.length-1){idx++;start()}};

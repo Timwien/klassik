@@ -49,7 +49,6 @@ h2{font-size:18px;font-weight:700;margin:16px 4px 8px;color:var(--brass)}
 .hide{display:none}
 .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
 .helpbtn{display:block;width:100%;height:46px;border-radius:14px;background:transparent;border:2px solid #3d5247;font-size:17px;color:var(--soft)}
-h2.first{margin-top:4px}
 .list{background:#3a3524;border-color:#5a4c2a}
 .help{position:fixed;inset:0;z-index:8;overflow-y:auto;background:var(--bg);
   padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 24px)}
@@ -84,9 +83,7 @@ h2.first{margin-top:4px}
 </head>
 <body>
 
-<h2 class="first">Playlists</h2>
-<div class="grid" id="lists"></div>
-<button class="mic" style="margin-top:14px" id="mic" aria-label="Sprechen">
+<button class="mic" id="mic" aria-label="Sprechen">
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V5a4 4 0 0 0-8 0v6a4 4 0 0 0 4 4Zm7-4a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-3.08A7 7 0 0 0 19 11Z"/></svg>
   <span id="micText">Drücken und Wunsch sagen</span>
 </button>
@@ -101,6 +98,8 @@ h2.first{margin-top:4px}
 <div class="heard" id="heard"></div>
 
 <div id="altBox" class="hide"><h2>Andere Aufnahmen</h2><div class="grid" id="alts"></div></div>
+<h2>Playlists</h2>
+<div class="grid" id="lists"></div>
 <div id="recentBox" class="hide"><h2>Zuletzt gehört</h2><div class="grid" id="recent"></div></div>
 
 <h2>Radio</h2>
